@@ -8,6 +8,28 @@ This guide provides the core flow and then directs you to provider-specific setu
 3. API issues access tokens used for all API calls
 4. Optional refresh keeps sessions alive
 
+## Install Packages
+API:
+```powershell
+dotnet add package NexArc.Authentication.Abstractions
+dotnet add package NexArc.Authentication.Api
+dotnet add package NexArc.Authentication.Provider.GoogleWorkspace
+```
+
+Client:
+```powershell
+dotnet add package NexArc.Authentication.Abstractions
+dotnet add package NexArc.Authentication.Client
+dotnet add package NexArc.Authentication.Provider.GoogleWorkspace
+```
+
+Optional (only if you need them):
+```powershell
+dotnet add package NexArc.Authentication.MagicLink
+dotnet add package NexArc.Authentication.DevicePairing
+dotnet add package NexArc.Authentication.Utilities
+```
+
 ## Deployment Note (API Not Public)
 The API may be internal-only. Public-facing interactions (magic link and device pairing) are handled by the client app, which exposes the user-facing endpoints and calls the API from the backend.
 
@@ -41,6 +63,7 @@ builder.Services
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
 var app = builder.Build();
+app.MapClientAuthentication(); // required for magic link/device pairing
 app.Run();
 ```
 
@@ -56,9 +79,8 @@ Common API endpoints:
 Source: API endpoint mappings created by `MapAuthentication`.
 
 Provider API endpoints (examples):
-- Device Pairing: `POST /auth/device-pairing/code`, `POST /auth/device-pairing/resolve`
+- Device Pairing: `POST /auth/device-pairing/code`, `POST /auth/device-pairing/resolve`, `GET /auth/device-pairing/qr/{code}`
 - Magic Link: `POST /auth/magic-link/request`, `POST /auth/magic-link/redeem`
-- QR visualization: `GET /auth/qr/{providerKey}/{code}` (if enabled)
 
 Source: API endpoint mappings created by `MapAuthentication` plus provider-specific API modules.
 
@@ -77,6 +99,9 @@ Some providers require public client endpoints for user interaction:
 - Device pairing routes (code entry, QR display)
 
 Source: client endpoint mappings created by `MapClientAuthentication` in the client app.
+Paths are based on the provider key, for example:
+- Magic Link: `POST /magic-link/request`, `POST /magic-link/redeem`
+- Device Pairing: `POST /device-pairing/code`, `POST /device-pairing/resolve`, `GET /device-pairing/qr/{code}`
 
 Use the provider client configuration to set the callback paths expected by the middleware and your IdP.
 
@@ -86,6 +111,7 @@ Each `AddProvider...` must set a unique scheme/key used to:
 - namespace provider-specific endpoint names
 
 This can be overridden to support multiple instances of the same provider (e.g., separate Auth0 tenants for staff and customers).
+Override with `ProviderKey` and `Scheme` in the provider configuration section.
 
 ## Choose Your Provider
 - [Azure B2C](getting-started/azure-b2c.md)
@@ -126,3 +152,13 @@ Enable per provider:
 Behavior:
 - Bypass is automatic and per provider
 - Startup fails if enabled outside `Development`
+
+Dev bypass for exchange (API):
+- Provide `DevBypassUser` in the exchange request to mint tokens for a configured dev user.
+
+Example request:
+```json
+{
+  "DevBypassUser": "test@example.com"
+}
+```

@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="Authentication.Examples.Api/Authentication.Examples.Api.csproj" />
+  <Project Path="Authentication.Examples.Client.Auth0B2C/Authentication.Examples.Client.Auth0B2C.csproj" />
+  <Project Path="Authentication.Examples.Client.AzureB2C/Authentication.Examples.Client.AzureB2C.csproj" />
+  <Project Path="Authentication.Examples.Client.DevicePairing/Authentication.Examples.Client.DevicePairing.csproj" />
+  <Project Path="Authentication.Examples.Client.GoogleWorkspace/Authentication.Examples.Client.GoogleWorkspace.csproj" />
+  <Project Path="Authentication.Examples.Client.MagicLink/Authentication.Examples.Client.MagicLink.csproj" />
+  <Project Path="Authentication.Examples.Client.Microsoft365/Authentication.Examples.Client.Microsoft365.csproj" />
+  <Project Path="Examples.AppHost/Examples.AppHost.csproj" />
+  <Project Path="Examples.ServiceDefaults/Examples.ServiceDefaults.csproj" />
+</Solution>

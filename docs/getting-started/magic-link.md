@@ -7,12 +7,12 @@ Magic link uses a short-lived code delivered to the user (email/SMS). The client
 API:
 - `POST /auth/magic-link/request`
 - `POST /auth/magic-link/redeem`
-- `GET /auth/qr/magic-link/{code}` (optional)
 Source: API endpoint mappings created by `MapAuthentication` plus the magic link module.
 
 Client:
-- `GET /magic` (example redemption UI route)
-Source: client endpoint mappings created by `MapClientAuthentication` plus host app UI routes.
+- `POST /magic-link/request`
+- `POST /magic-link/redeem`
+Source: client endpoint mappings created by `MapClientAuthentication`.
 
 ## Required Client Services
 The library runs the magic link flow, but the client app supplies storage, verification, and delivery via DI.
@@ -28,7 +28,7 @@ public interface IMagicLinkSessionStore
 
 public interface IMagicLinkVerifier
 {
-    Task<MagicLinkApproval> ApproveAsync(MagicLinkRequest request, CancellationToken ct);
+    Task<MagicLinkApproval> ApproveAsync(MagicLinkSession session, CancellationToken ct);
 }
 
 public interface IMagicLinkNotifier
@@ -50,6 +50,7 @@ How the library finds these:
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple magic link experiences in the same app.
+Override with `ProviderKey` and `Scheme` in the provider configuration section.
 
 ## Program.cs (API)
 ```csharp
@@ -153,8 +154,8 @@ public interface IMagicLinkNotifier
 ```
 
 Behavior:
-- When enabled in Development, the API returns the code in the response
-- Delivery still flows through your notifier in non-bypass environments
+- When enabled in Development, configured destinations auto-approve on redeem
+- The API still enforces code lifetime and single-use semantics
 
 ## Uses Secure Code Generator
 See [Secure Code Generator](secure-code-generator.md) for details on allowed alphabets and QR payloads.

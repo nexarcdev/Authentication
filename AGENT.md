@@ -32,8 +32,8 @@ This repo aims for a clean, standards-based authentication toolkit that feels na
 - Development bypass must throw on startup in non-Development environments
 - Bypass is opt-in and explicit
 - Bypass is configured per provider
-- Mock user IDs come from `appsettings.Development.json` arrays
-- Magic Link returns the code immediately to the client
+- Mock users come from `DevBypass` sections (Users, Destinations, Devices)
+- Magic Link auto-approves configured destinations in Development
 - Clients implement a notifier interface for user delivery (SMS/email)
 
 ## Engineering Standards

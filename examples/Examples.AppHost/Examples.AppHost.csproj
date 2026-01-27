@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Authentication.Examples.Api\Authentication.Examples.Api.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.Auth0B2C\Authentication.Examples.Client.Auth0B2C.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.AzureB2C\Authentication.Examples.Client.AzureB2C.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.DevicePairing\Authentication.Examples.Client.DevicePairing.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.GoogleWorkspace\Authentication.Examples.Client.GoogleWorkspace.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.MagicLink\Authentication.Examples.Client.MagicLink.csproj" />
+    <ProjectReference Include="..\Authentication.Examples.Client.Microsoft365\Authentication.Examples.Client.Microsoft365.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>c50a2faf-e0df-4b05-a1b2-005282829ed4</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

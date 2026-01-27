@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Client\NexArc.Authentication.Client.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Provider.GoogleWorkspace\NexArc.Authentication.Provider.GoogleWorkspace.csproj" />
+    <ProjectReference Include="..\Examples.ServiceDefaults\Examples.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

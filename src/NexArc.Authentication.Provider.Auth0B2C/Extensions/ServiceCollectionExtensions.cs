@@ -1,0 +1,74 @@
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NexArc.Authentication.Abstractions.Interfaces;
+using NexArc.Authentication.Abstractions.Models;
+using NexArc.Authentication.DevBypass.Services;
+using NexArc.Authentication.Provider.Auth0B2C.Options;
+using NexArc.Authentication.Provider.Auth0B2C.Services;
+
+namespace NexArc.Authentication.Provider.Auth0B2C.Extensions;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddProviderAuth0B2C(
+        this IServiceCollection services,
+        IConfigurationSection section)
+    {
+        return services.AddProviderAuth0B2C(options => section.Bind(options));
+    }
+
+    public static IServiceCollection AddProviderAuth0B2C(
+        this IServiceCollection services,
+        Action<Auth0B2COptions> configure)
+    {
+        var local = new Auth0B2COptions();
+        configure(local);
+        ApplyDefaults(local);
+
+        services.AddOptions<Auth0B2COptions>()
+            .Configure(options =>
+            {
+                configure(options);
+                ApplyDefaults(options);
+            })
+            .Validate(o => !string.IsNullOrWhiteSpace(o.ProviderKey), "ProviderKey is required.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.Authority), "Authority is required.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.ClientId), "ClientId is required.")
+            .ValidateOnStart();
+
+        services.AddKeyedScoped<IExternalIdentityValidator>(
+            local.ProviderKey,
+            (sp, _) => new Auth0B2CTokenValidator(
+                sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Auth0B2COptions>>()));
+
+        services.AddSingleton(new ProviderDescriptor(local.ProviderKey, local.Scheme));
+        services.AddSingleton<IDevelopmentBypassUserProvider, Auth0B2CDevBypassProvider>();
+
+        services.AddAuthentication()
+            .AddOpenIdConnect(local.Scheme, options =>
+            {
+                options.Authority = local.Authority;
+                options.ClientId = local.ClientId;
+                options.ClientSecret = local.ClientSecret;
+                options.ResponseType = "code";
+                options.UsePkce = true;
+                options.SaveTokens = true;
+            });
+
+        return services;
+    }
+
+    private static void ApplyDefaults(Auth0B2COptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProviderKey))
+        {
+            options.ProviderKey = "auth0-b2c";
+        }
+
+        if (string.IsNullOrWhiteSpace(options.Scheme))
+        {
+            options.Scheme = options.ProviderKey;
+        }
+    }
+}

@@ -27,6 +27,9 @@ This utility generates short-lived codes suitable for device pairing and magic l
 }
 ```
 
+## Registration
+The magic link and device pairing providers register the secure code generator automatically.
+
 ## QR Codes
 - Device pairing and magic link can both emit a QR payload
 - QR payload includes the code and a redeem URL

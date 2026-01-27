@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Api\NexArc.Authentication.Api.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Provider.GoogleWorkspace\NexArc.Authentication.Provider.GoogleWorkspace.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Provider.AzureB2C\NexArc.Authentication.Provider.AzureB2C.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Provider.Auth0B2C\NexArc.Authentication.Provider.Auth0B2C.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.Provider.Microsoft365\NexArc.Authentication.Provider.Microsoft365.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.MagicLink\NexArc.Authentication.MagicLink.csproj" />
+    <ProjectReference Include="..\..\src\NexArc.Authentication.DevicePairing\NexArc.Authentication.DevicePairing.csproj" />
+    <ProjectReference Include="..\Examples.ServiceDefaults\Examples.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

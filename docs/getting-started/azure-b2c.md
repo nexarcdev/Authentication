@@ -18,6 +18,7 @@ Note: no client endpoint mapping is required beyond the OIDC middleware.
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Azure B2C instances in the same app.
+Override with `ProviderKey` and `Scheme` in the provider configuration section.
 
 ## Program.cs (API)
 ```csharp

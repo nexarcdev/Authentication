@@ -20,7 +20,10 @@ A zero-friction, plug-and-play set of NuGet packages that gives ASP.NET and Blaz
 - `NexArc.Authentication.Abstractions` – shared primitives, options, interfaces
 - `NexArc.Authentication.Api` – token exchange endpoints, token issuance/validation
 - `NexArc.Authentication.Client` – client auth state, token storage, API client helpers
-- `NexArc.Authentication.DevBypass` – dev portal + guardrails
+- `NexArc.Authentication.DevBypass` – internal dev bypass guardrails
+- `NexArc.Authentication.MagicLink` – magic link flow (API + client endpoints)
+- `NexArc.Authentication.DevicePairing` – device pairing flow (API + client endpoints)
+- `NexArc.Authentication.Utilities` – secure code generator
 - Provider packages (one per IdP) – client wiring + API validation
 
 ## Quick Start
@@ -56,6 +59,7 @@ builder.Services
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
 var app = builder.Build();
+app.MapClientAuthentication(); // required for magic link/device pairing
 app.Run();
 ```
 
@@ -73,6 +77,7 @@ app.Run();
 - Magic Link returns the code immediately to the client
 - Clients must implement a notifier interface for user delivery (SMS/email)
 - Hard guardrail: if enabled outside Development, startup fails
+- Dev bypass exchange supports `DevBypassUser` to mint tokens for configured users
 
 ## Provider Notes
 - Google Workspace can restrict sign-in to a hosted domain allowlist

@@ -1,0 +1,38 @@
+<Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Authentication.Examples.Api/Authentication.Examples.Api.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.Auth0B2C/Authentication.Examples.Client.Auth0B2C.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.AzureB2C/Authentication.Examples.Client.AzureB2C.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.DevicePairing/Authentication.Examples.Client.DevicePairing.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.GoogleWorkspace/Authentication.Examples.Client.GoogleWorkspace.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.MagicLink/Authentication.Examples.Client.MagicLink.csproj" />
+    <Project Path="examples/Authentication.Examples.Client.Microsoft365/Authentication.Examples.Client.Microsoft365.csproj" />
+    <Project Path="examples/Examples.AppHost/Examples.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/NexArc.Authentication.Abstractions/NexArc.Authentication.Abstractions.csproj" />
+    <Project Path="src/NexArc.Authentication.Api/NexArc.Authentication.Api.csproj" />
+    <Project Path="src/NexArc.Authentication.Client/NexArc.Authentication.Client.csproj" />
+    <Project Path="src/NexArc.Authentication.DevBypass/NexArc.Authentication.DevBypass.csproj" />
+    <Project Path="src/NexArc.Authentication.DevicePairing/NexArc.Authentication.DevicePairing.csproj" />
+    <Project Path="src/NexArc.Authentication.MagicLink/NexArc.Authentication.MagicLink.csproj" />
+    <Project Path="src/NexArc.Authentication.Provider.Auth0B2C/NexArc.Authentication.Provider.Auth0B2C.csproj" />
+    <Project Path="src/NexArc.Authentication.Provider.AzureB2C/NexArc.Authentication.Provider.AzureB2C.csproj" />
+    <Project Path="src/NexArc.Authentication.Provider.GoogleWorkspace/NexArc.Authentication.Provider.GoogleWorkspace.csproj" />
+    <Project Path="src/NexArc.Authentication.Provider.Microsoft365/NexArc.Authentication.Provider.Microsoft365.csproj" />
+    <Project Path="src/NexArc.Authentication.Utilities/NexArc.Authentication.Utilities.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NexArc.Authentication.Abstractions.Tests/NexArc.Authentication.Abstractions.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Api.Tests/NexArc.Authentication.Api.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Client.Tests/NexArc.Authentication.Client.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.DevBypass.Tests/NexArc.Authentication.DevBypass.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.DevicePairing.Tests/NexArc.Authentication.DevicePairing.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.MagicLink.Tests/NexArc.Authentication.MagicLink.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Provider.Auth0B2C.Tests/NexArc.Authentication.Provider.Auth0B2C.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Provider.AzureB2C.Tests/NexArc.Authentication.Provider.AzureB2C.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Provider.GoogleWorkspace.Tests/NexArc.Authentication.Provider.GoogleWorkspace.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Provider.Microsoft365.Tests/NexArc.Authentication.Provider.Microsoft365.Tests.csproj" />
+    <Project Path="tests/NexArc.Authentication.Utilities.Tests/NexArc.Authentication.Utilities.Tests.csproj" />
+  </Folder>
+</Solution>

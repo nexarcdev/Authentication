@@ -7,12 +7,14 @@ Device pairing allows a constrained device to authenticate by pairing with a sig
 API:
 - `POST /auth/device-pairing/code`
 - `POST /auth/device-pairing/resolve`
-- `GET /auth/qr/device-pairing/{code}` (optional)
+- `GET /auth/device-pairing/qr/{code}` (optional)
 Source: API endpoint mappings created by `MapAuthentication` plus the device pairing module.
 
 Client:
-- `GET /pair` (example pairing UI route)
-Source: client endpoint mappings created by `MapClientAuthentication` plus host app UI routes.
+- `POST /device-pairing/code`
+- `POST /device-pairing/resolve`
+- `GET /device-pairing/qr/{code}`
+Source: client endpoint mappings created by `MapClientAuthentication`.
 
 ## Required Client Services
 The library runs the pairing flow, but the client app supplies storage and verification via DI.
@@ -28,7 +30,7 @@ public interface IDevicePairingSessionStore
 
 public interface IDevicePairingVerifier
 {
-    Task<DevicePairingApproval> ApproveAsync(DevicePairingRequest request, CancellationToken ct);
+    Task<DevicePairingApproval> ApproveAsync(DevicePairingSession session, CancellationToken ct);
 }
 ```
 
@@ -44,6 +46,7 @@ How the library finds these:
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple device pairing experiences in the same app.
+Override with `ProviderKey` and `Scheme` in the provider configuration section.
 
 ## Program.cs (API)
 ```csharp
