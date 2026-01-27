@@ -14,7 +14,7 @@ Client:
 - `GET /signout-callback-oidc` (optional)
 Source: OpenIdConnect handler registered by `AddClientAuthentication`.
 
-Note: no client endpoint mapping is required beyond the OIDC middleware.
+Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Auth0 instances in the same app.
@@ -33,6 +33,8 @@ builder.Services
     .AddProviderAuth0B2C(builder.Configuration.GetSection("Auth:Providers:Auth0B2C"));
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -44,12 +46,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "auth0-b2c";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "auth0-b2c";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderAuth0B2C(builder.Configuration.GetSection("Auth:Providers:Auth0B2C"));
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication();
 app.Run();
 ```
 
@@ -75,6 +82,7 @@ app.Run();
 ```json
 {
   "Auth": {
+    "ProviderKey": "auth0-b2c",
     "ApiBaseUrl": "https://api.example.local",
     "Providers": {
       "Auth0B2C": {

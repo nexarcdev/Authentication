@@ -14,7 +14,7 @@ Client:
 - `GET /signout-callback-oidc` (optional)
 Source: OpenIdConnect handler registered by `AddClientAuthentication`.
 
-Note: no client endpoint mapping is required beyond the OIDC middleware.
+Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Google Workspace instances in the same app.
@@ -33,6 +33,8 @@ builder.Services
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -44,12 +46,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "google-workspace";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication();
 app.Run();
 ```
 
@@ -75,6 +82,7 @@ app.Run();
 ```json
 {
   "Auth": {
+    "ProviderKey": "google-workspace",
     "ApiBaseUrl": "https://api.example.local",
     "Providers": {
       "GoogleWorkspace": {

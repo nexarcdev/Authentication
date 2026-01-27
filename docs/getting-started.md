@@ -30,6 +30,8 @@ dotnet add package NexArc.Authentication.DevicePairing
 dotnet add package NexArc.Authentication.Utilities
 ```
 
+Replace the provider package with the one you are using (AzureB2C, Auth0B2C, Microsoft365, GoogleWorkspace, MagicLink, DevicePairing).
+
 ## Deployment Note (API Not Public)
 The API may be internal-only. Public-facing interactions (magic link and device pairing) are handled by the client app, which exposes the user-facing endpoints and calls the API from the backend.
 
@@ -46,6 +48,8 @@ builder.Services
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -57,13 +61,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "google-workspace";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
-app.MapClientAuthentication(); // required for magic link/device pairing
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication(); // sets up /login, /logout, /auth/dev-login, plus provider client endpoints
 app.Run();
 ```
 
@@ -85,7 +93,7 @@ Provider API endpoints (examples):
 Source: API endpoint mappings created by `MapAuthentication` plus provider-specific API modules.
 
 ## Client-Side Endpoints (OIDC Callbacks)
-OIDC callbacks are handled by the client app, not the API. `MapAuthentication` is not used on clients.
+OIDC callbacks are handled by the client app, not the API. `MapAuthentication` is API-only; clients use `MapClientAuthentication` for their mapped endpoints.
 
 Client callback endpoints (examples):
 - `GET /signin-oidc` – default OIDC callback path
@@ -93,15 +101,20 @@ Client callback endpoints (examples):
 
 Source: OpenIdConnect handler registered by `AddClientAuthentication` (middleware-owned endpoints).
 
-## Client-Side Mapped Endpoints (Magic Link + Device Pairing)
-Some providers require public client endpoints for user interaction:
-- Magic Link redemption routes
+## Client-Side Mapped Endpoints (All Clients)
+`MapClientAuthentication` registers:
+- `GET /login` – starts the OIDC challenge
+- `GET|POST /logout` – clears local token store (and optional upstream sign-out)
+- `GET|POST /auth/dev-login` – dev-only login helper (Development + DevBypass enabled)
+
+Some providers require additional public client endpoints for user interaction:
+- Magic Link routes (request + redeem)
 - Device pairing routes (code entry, QR display)
 
 Source: client endpoint mappings created by `MapClientAuthentication` in the client app.
 Paths are based on the provider key, for example:
-- Magic Link: `POST /magic-link/request`, `POST /magic-link/redeem`
-- Device Pairing: `POST /device-pairing/code`, `POST /device-pairing/resolve`, `GET /device-pairing/qr/{code}`
+- Magic Link (default provider key `magic-link`): `POST /magic-link/request`, `POST /magic-link/redeem`
+- Device Pairing (default provider key `device-pairing`): `POST /device-pairing/code`, `POST /device-pairing/resolve`, `GET /device-pairing/qr/{code}`
 
 Use the provider client configuration to set the callback paths expected by the middleware and your IdP.
 
@@ -140,7 +153,7 @@ Enable per provider:
         "DevBypass": {
           "Enabled": true,
           "Users": [
-            { "name": "Test User", "email": "test@example.com", "roles": ["Staff"] }
+            { "subject": "test-user", "name": "Test User", "email": "test@example.com", "roles": ["Staff"] }
           ]
         }
       }

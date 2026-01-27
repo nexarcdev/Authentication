@@ -1,32 +1,58 @@
-﻿# Authentication Toolkit for ASP.NET & Blazor
+# Authentication Toolkit for ASP.NET & Blazor
 
-A zero-friction, plug-and-play set of NuGet packages that gives ASP.NET and Blazor apps a consistent, standards-based authentication model with minimal configuration and a clear path to extension. The API is the central authority. Each client app uses only the identity provider (IdP) it needs, then exchanges external identities for first-party tokens issued by the API.
+A set of NuGet packages that provides a clean, standards-based authentication model for ASP.NET and Blazor. The API is the single token issuer. Each client app uses only the identity provider (IdP) it needs, then exchanges external identities for API-issued tokens.
 
-## Goals
-- One-stop setup for APIs + multiple client apps
-- Centralized IdP configuration in the API
-- Simple client setup per app (only the IdP it needs)
-- Standards-based OIDC/OAuth flows, clean defaults
-- Minimal config now, extensible hooks later
-- Development bypass for fast local workflows
+## Purpose and Capabilities
+- Consistent authentication model across APIs + multiple client apps
+- Standards-based OIDC/OAuth flows with opinionated defaults
+- Token exchange flow that keeps API auth first-party and centralized
+- Client helpers for login/logout, token storage, and API calls
+- Extensible providers for enterprise and consumer IdPs
+- Magic link and device pairing flows for non-traditional sign-in
+- Development bypass with strict environment guardrails
 
 ## Core Principles
 - **Single issuer for the API:** the API trusts only tokens it issues
-- **Token exchange (Flow B):** clients exchange external tokens for API-issued tokens
+- **Token exchange flow:** clients exchange external tokens for API-issued tokens
 - **Opinionated defaults:** sensible choices with extension points
 - **No branding in protocols:** no custom cookie names or branded claims
 
 ## Package Layout (NuGet)
-- `NexArc.Authentication.Abstractions` – shared primitives, options, interfaces
-- `NexArc.Authentication.Api` – token exchange endpoints, token issuance/validation
-- `NexArc.Authentication.Client` – client auth state, token storage, API client helpers
-- `NexArc.Authentication.DevBypass` – internal dev bypass guardrails
-- `NexArc.Authentication.MagicLink` – magic link flow (API + client endpoints)
-- `NexArc.Authentication.DevicePairing` – device pairing flow (API + client endpoints)
-- `NexArc.Authentication.Utilities` – secure code generator
-- Provider packages (one per IdP) – client wiring + API validation
+- `NexArc.Authentication.Abstractions` - shared primitives, options, interfaces
+- `NexArc.Authentication.Api` - token exchange endpoints, token issuance/validation
+- `NexArc.Authentication.Client` - client auth state, token storage, API client helpers
+- `NexArc.Authentication.DevBypass` - internal dev bypass guardrails
+- `NexArc.Authentication.MagicLink` - magic link flow (API + client endpoints)
+- `NexArc.Authentication.DevicePairing` - device pairing flow (API + client endpoints)
+- `NexArc.Authentication.Utilities` - secure code generator
+- Provider packages (one per IdP) - client wiring + API validation
+
+## Supported Providers
+- Google Workspace (SSO)
+- Microsoft 365 (Entra ID)
+- Azure AD B2C
+- Auth0 (B2C)
+- Magic link (code + link)
+- Device pairing (short code + optional QR)
 
 ## Quick Start
+
+### Install packages
+API:
+```powershell
+dotnet add package NexArc.Authentication.Abstractions
+dotnet add package NexArc.Authentication.Api
+dotnet add package NexArc.Authentication.Provider.GoogleWorkspace
+```
+
+Client:
+```powershell
+dotnet add package NexArc.Authentication.Abstractions
+dotnet add package NexArc.Authentication.Client
+dotnet add package NexArc.Authentication.Provider.GoogleWorkspace
+```
+
+Replace the provider package with the one you are using (AzureB2C, Auth0B2C, Microsoft365, GoogleWorkspace, MagicLink, DevicePairing).
 
 ### 1) API
 ```csharp
@@ -42,6 +68,8 @@ builder.Services
     .AddProviderAzureB2C(builder.Configuration.GetSection("Auth:Providers:AzureB2C"));
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -53,29 +81,42 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "google-workspace";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
-app.MapClientAuthentication(); // required for magic link/device pairing
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication(); // adds /login, /logout, /auth/dev-login, plus provider client endpoints
 app.Run();
 ```
 
-## How It Works (Flow B)
+## How It Works (Token Exchange)
 1. Client signs in with its configured IdP using OIDC (Auth Code + PKCE)
 2. Client exchanges external tokens with the API (`POST /auth/exchange/{providerKey}`)
 3. API validates the external token, normalizes identity, and issues API tokens
 4. Client uses API-issued access token on all API calls
 5. Optional refresh flow keeps sessions alive without frequent IdP prompts
 
+## Magic Link and Device Pairing Requirements
+- API must register session storage + verification services via DI
+- Client must provide a notifier for delivering magic links (email/SMS/push)
+- Device pairing requires no client-side services beyond auth configuration
+- Client endpoints are mapped under the provider key (default `magic-link` / `device-pairing`)
+
 ## Development Bypass
 - Development bypass is automatic and driven by per-provider config
 - Enable it under `Auth:Providers:<Provider>:DevBypass:Enabled`
-- Provide test users under `Auth:Providers:<Provider>:DevBypass:Users`
-- Magic Link returns the code immediately to the client
-- Clients must implement a notifier interface for user delivery (SMS/email)
+- Provide test users under `Auth:Providers:<Provider>:DevBypass:Users` (IdP providers)
+- Magic link uses `Auth:Providers:MagicLink:DevBypass:Destinations`
+- Device pairing uses `Auth:Providers:DevicePairing:DevBypass:Devices`
+- Magic link auto-approves configured destinations during redeem in Development
+- Device pairing auto-approves configured devices during resolve in Development
+- Clients must implement a notifier interface for user delivery (email/SMS)
 - Hard guardrail: if enabled outside Development, startup fails
 - Dev bypass exchange supports `DevBypassUser` to mint tokens for configured users
 
@@ -83,8 +124,93 @@ app.Run();
 - Google Workspace can restrict sign-in to a hosted domain allowlist
 - Configure `AllowedDomains` as an array; empty means allow all Workspace domains
 
-## Docs
+## Docs and Examples
 - [Getting Started](docs/getting-started.md)
+- Examples: `examples/Authentication.Examples.*`
+
+## Environment Variables (Production)
+ASP.NET configuration supports environment variables using `__` as the section separator (example: `Auth__Issuer` maps to `Auth:Issuer`).
+
+### API (common)
+- `Auth__Issuer` (required)
+- `Auth__Audience` (required)
+
+### API (provider-specific)
+Google Workspace:
+- `Auth__Providers__GoogleWorkspace__Authority` (required)
+- `Auth__Providers__GoogleWorkspace__ClientId` (required)
+- `Auth__Providers__GoogleWorkspace__ClientSecret` (required)
+- `Auth__Providers__GoogleWorkspace__AllowedDomains__0`, `__1`, ... (optional)
+
+Microsoft 365 (Entra ID):
+- `Auth__Providers__Microsoft365__Authority` (required)
+- `Auth__Providers__Microsoft365__ClientId` (required)
+- `Auth__Providers__Microsoft365__ClientSecret` (required)
+- `Auth__Providers__Microsoft365__AllowedTenants__0`, `__1`, ... (optional)
+
+Azure AD B2C:
+- `Auth__Providers__AzureB2C__Authority` (required)
+- `Auth__Providers__AzureB2C__ClientId` (required)
+- `Auth__Providers__AzureB2C__ClientSecret` (required)
+- `Auth__Providers__AzureB2C__AllowedTenants__0`, `__1`, ... (optional)
+
+Auth0 (B2C):
+- `Auth__Providers__Auth0B2C__Authority` (required)
+- `Auth__Providers__Auth0B2C__ClientId` (required)
+- `Auth__Providers__Auth0B2C__ClientSecret` (required)
+- `Auth__Providers__Auth0B2C__AllowedTenants__0`, `__1`, ... (optional)
+
+Magic link (API):
+- `Auth__Providers__MagicLink__RedeemUrl` (recommended in production)
+- `Auth__Providers__MagicLink__CodeLength` (optional)
+- `Auth__Providers__MagicLink__CodeAlphabet` (optional)
+- `Auth__Providers__MagicLink__CodeLifetimeSeconds` (optional)
+
+Device pairing (API):
+- `Auth__Providers__DevicePairing__PairingUrl` (recommended in production)
+- `Auth__Providers__DevicePairing__CodeLength` (optional)
+- `Auth__Providers__DevicePairing__CodeAlphabet` (optional)
+- `Auth__Providers__DevicePairing__CodeLifetimeSeconds` (optional)
+
+### Client (common)
+- `Auth__ApiBaseUrl` (required)
+- `Auth__ProviderKey` (recommended; defaults per provider)
+
+### Client (provider-specific)
+Google Workspace:
+- `Auth__Providers__GoogleWorkspace__Authority` (required)
+- `Auth__Providers__GoogleWorkspace__ClientId` (required)
+- `Auth__Providers__GoogleWorkspace__ClientSecret` (required)
+- `Auth__Providers__GoogleWorkspace__RedirectUris__0`, `__1`, ... (required)
+- `Auth__Providers__GoogleWorkspace__AllowedDomains__0`, `__1`, ... (optional)
+
+Microsoft 365 (Entra ID):
+- `Auth__Providers__Microsoft365__Authority` (required)
+- `Auth__Providers__Microsoft365__ClientId` (required)
+- `Auth__Providers__Microsoft365__ClientSecret` (required)
+- `Auth__Providers__Microsoft365__RedirectUris__0`, `__1`, ... (required)
+
+Azure AD B2C:
+- `Auth__Providers__AzureB2C__Authority` (required)
+- `Auth__Providers__AzureB2C__ClientId` (required)
+- `Auth__Providers__AzureB2C__ClientSecret` (required)
+- `Auth__Providers__AzureB2C__RedirectUris__0`, `__1`, ... (required)
+
+Auth0 (B2C):
+- `Auth__Providers__Auth0B2C__Authority` (required)
+- `Auth__Providers__Auth0B2C__ClientId` (required)
+- `Auth__Providers__Auth0B2C__ClientSecret` (required)
+- `Auth__Providers__Auth0B2C__RedirectUris__0`, `__1`, ... (required)
+
+Magic link (Client):
+- `Auth__Providers__MagicLink__RedeemUrl` (optional; used to build links if API does not set one)
+
+Device pairing (Client):
+- `Auth__Providers__DevicePairing__PairingUrl` (optional; used by API for QR payloads)
+
+Notes:
+- Use your hosting platform's secret store for `ClientSecret` values.
+- Do not enable `DevBypass` in production; startup fails outside `Development`.
 
 ## Status
 - This repo is scaffolding for the packages and docs. The goal is a clean, standards-based auth stack that feels native to ASP.NET and Blazor.

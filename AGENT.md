@@ -39,9 +39,9 @@ This repo aims for a clean, standards-based authentication toolkit that feels na
 ## Engineering Standards
 - Fix root causes, never patch symptoms; avoid hacks
 - Production-ready, tested, secure; use xUnit for unit tests
-- If uncertain, add detailed debugging output and ask the user to run tests
+- If uncertain, add detailed debugging output and ask the user to run reproduce the issue
 - Never manually edit `.csproj`, `.sln`, or `.slnx` files; use `dotnet` CLI
-- Keep code DRY, KISS, SOLID; aim for Microsoft-level quality
+- Keep code DRY, KISS, SOLID; aim for native Microsoft-level quality
 
 ## Files to Keep in Sync
 - `README.md` for overview and intent

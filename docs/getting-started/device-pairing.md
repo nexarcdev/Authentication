@@ -16,8 +16,10 @@ Client:
 - `GET /device-pairing/qr/{code}`
 Source: client endpoint mappings created by `MapClientAuthentication`.
 
-## Required Client Services
-The library runs the pairing flow, but the client app supplies storage and verification via DI.
+Paths assume the default provider key `device-pairing`. If you override `ProviderKey`, replace the prefix accordingly.
+
+## Required API Services
+The API owns the pairing workflow and must provide storage and verification via DI.
 
 Example interfaces:
 ```csharp
@@ -34,7 +36,7 @@ public interface IDevicePairingVerifier
 }
 ```
 
-Registration example:
+API registration example:
 ```csharp
 builder.Services.AddScoped<IDevicePairingSessionStore, DevicePairingSessionStore>();
 builder.Services.AddScoped<IDevicePairingVerifier, DevicePairingVerifier>();
@@ -60,7 +62,12 @@ builder.Services
     })
     .AddProviderDevicePairing(builder.Configuration.GetSection("Auth:Providers:DevicePairing"));
 
+builder.Services.AddScoped<IDevicePairingSessionStore, DevicePairingSessionStore>();
+builder.Services.AddScoped<IDevicePairingVerifier, DevicePairingVerifier>();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -72,12 +79,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "device-pairing";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "device-pairing";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderDevicePairing(builder.Configuration.GetSection("Auth:Providers:DevicePairing"));
 
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
@@ -98,17 +109,21 @@ app.Run();
       "DevicePairing": {
         "CodeLength": 8,
         "CodeAlphabet": "Numeric",
-        "CodeLifetimeSeconds": 300
+        "CodeLifetimeSeconds": 300,
+        "PairingUrl": "https://app.example.local/pair"
       }
     }
   }
 }
 ```
 
+`PairingUrl` is used by the API to build the QR payload returned from `POST /auth/{providerKey}/code` and `GET /auth/{providerKey}/qr/{code}`.
+
 ## Client Configuration
 ```json
 {
   "Auth": {
+    "ProviderKey": "device-pairing",
     "ApiBaseUrl": "https://api.example.local",
     "Providers": {
       "DevicePairing": {

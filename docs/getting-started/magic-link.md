@@ -14,10 +14,12 @@ Client:
 - `POST /magic-link/redeem`
 Source: client endpoint mappings created by `MapClientAuthentication`.
 
-## Required Client Services
-The library runs the magic link flow, but the client app supplies storage, verification, and delivery via DI.
+Paths assume the default provider key `magic-link`. If you override `ProviderKey`, replace the prefix accordingly.
 
-Example interfaces:
+## Required API Services
+The API owns the magic link workflow and must provide storage and verification via DI.
+
+Example interfaces (API):
 ```csharp
 public interface IMagicLinkSessionStore
 {
@@ -30,23 +32,33 @@ public interface IMagicLinkVerifier
 {
     Task<MagicLinkApproval> ApproveAsync(MagicLinkSession session, CancellationToken ct);
 }
+```
 
+API registration example:
+```csharp
+builder.Services.AddScoped<IMagicLinkSessionStore, MagicLinkSessionStore>();
+builder.Services.AddScoped<IMagicLinkVerifier, MagicLinkVerifier>();
+```
+
+How the library finds these:
+- The provider resolves them from DI at runtime
+- Missing registrations are treated as startup errors
+
+## Required Client Services
+The client is responsible for delivering the magic link (email/SMS/push). Provide a notifier implementation via DI.
+
+Example interface:
+```csharp
 public interface IMagicLinkNotifier
 {
     Task SendAsync(string destination, string code, string link, CancellationToken ct);
 }
 ```
 
-Registration example:
+Client registration example:
 ```csharp
-builder.Services.AddScoped<IMagicLinkSessionStore, MagicLinkSessionStore>();
-builder.Services.AddScoped<IMagicLinkVerifier, MagicLinkVerifier>();
 builder.Services.AddScoped<IMagicLinkNotifier, MagicLinkNotifier>();
 ```
-
-How the library finds these:
-- The provider resolves them from DI at runtime
-- Missing registrations are treated as startup errors
 
 ## Scheme and Endpoint Key
 Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple magic link experiences in the same app.
@@ -64,7 +76,12 @@ builder.Services
     })
     .AddProviderMagicLink(builder.Configuration.GetSection("Auth:Providers:MagicLink"));
 
+builder.Services.AddScoped<IMagicLinkSessionStore, MagicLinkSessionStore>();
+builder.Services.AddScoped<IMagicLinkVerifier, MagicLinkVerifier>();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapAuthentication();
 app.Run();
 ```
@@ -76,12 +93,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = "magic-link";
+        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "magic-link";
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderMagicLink(builder.Configuration.GetSection("Auth:Providers:MagicLink"));
 
+builder.Services.AddScoped<IMagicLinkNotifier, MagicLinkNotifier>();
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
@@ -102,21 +124,25 @@ app.Run();
       "MagicLink": {
         "CodeLength": 8,
         "CodeAlphabet": "Unambiguous",
-        "CodeLifetimeSeconds": 600
+        "CodeLifetimeSeconds": 600,
+        "RedeemUrl": "https://app.example.local/magic"
       }
     }
   }
 }
 ```
 
+`RedeemUrl` is used by the API to build the link returned from `POST /auth/{providerKey}/request`. If you omit it, `RedeemUrl` will be null and the client must construct the link.
+
 ## Client Configuration
 ```json
 {
   "Auth": {
+    "ProviderKey": "magic-link",
     "ApiBaseUrl": "https://api.example.local",
     "Providers": {
       "MagicLink": {
-        "RedeemUrl": "https://app.example.local/magic" 
+        "RedeemUrl": "https://app.example.local/magic"
       }
     }
   }
