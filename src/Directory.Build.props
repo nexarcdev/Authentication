@@ -1,0 +1,62 @@
+<Project>
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>$(MSBuildProjectName)</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>NexArc</Authors>
+    <Company>NexArc</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/nexarcdev/Authentication</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(SolutionDir)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+  
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Abstractions'">
+    <Description>Shared primitives, options, and interfaces for the NexArc authentication toolkit.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Api'">
+    <Description>API-side authentication: token exchange endpoints plus token issuance and validation.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Client'">
+    <Description>Client-side authentication helpers for ASP.NET and Blazor, including login, logout, and API token handling.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.DevBypass'">
+    <Description>Development-only authentication bypass with strict guardrails and configured mock users.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.DevicePairing'">
+    <Description>Device pairing provider flow with API + client endpoints for pairing code exchange.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.MagicLink'">
+    <Description>Magic link provider flow with API + client endpoints for code redeem and link delivery.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Provider.Auth0B2C'">
+    <Description>Auth0 B2C provider integration for client OIDC wiring and API token validation.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Provider.AzureB2C'">
+    <Description>Azure AD B2C provider integration for client OIDC wiring and API token validation.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Provider.GoogleWorkspace'">
+    <Description>Google Workspace provider integration for client OIDC wiring and API token validation.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Provider.Microsoft365'">
+    <Description>Microsoft 365 (Entra ID) provider integration for client OIDC wiring and API token validation.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NexArc.Authentication.Utilities'">
+    <Description>Shared utilities for secure code generation used by non-traditional sign-in flows.</Description>
+  </PropertyGroup>
+</Project>
