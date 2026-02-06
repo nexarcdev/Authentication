@@ -1,3 +1,5 @@
+[![Publish NuGet Packages](https://github.com/nexarcdev/Authentication/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/nexarcdev/Authentication/actions/workflows/nuget-publish.yml) [![NuGet Package](https://img.shields.io/nuget/v/NexArc.Authentication.Abstractions.svg)](https://www.nuget.org/packages/NexArc.Authentication.Abstractions)
+
 # Authentication Toolkit for ASP.NET & Blazor
 
 A set of NuGet packages that provides a clean, standards-based authentication model for ASP.NET and Blazor. The API is the single token issuer. Each client app uses only the identity provider (IdP) it needs, then exchanges external identities for API-issued tokens.

@@ -1,0 +1,85 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment: Production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build packages
+      run: |
+        projects=(
+          "src/NexArc.Authentication.Abstractions/NexArc.Authentication.Abstractions.csproj"
+          "src/NexArc.Authentication.Api/NexArc.Authentication.Api.csproj"
+          "src/NexArc.Authentication.Client/NexArc.Authentication.Client.csproj"
+          "src/NexArc.Authentication.DevBypass/NexArc.Authentication.DevBypass.csproj"
+          "src/NexArc.Authentication.DevicePairing/NexArc.Authentication.DevicePairing.csproj"
+          "src/NexArc.Authentication.MagicLink/NexArc.Authentication.MagicLink.csproj"
+          "src/NexArc.Authentication.Provider.Auth0B2C/NexArc.Authentication.Provider.Auth0B2C.csproj"
+          "src/NexArc.Authentication.Provider.AzureB2C/NexArc.Authentication.Provider.AzureB2C.csproj"
+          "src/NexArc.Authentication.Provider.GoogleWorkspace/NexArc.Authentication.Provider.GoogleWorkspace.csproj"
+          "src/NexArc.Authentication.Provider.Microsoft365/NexArc.Authentication.Provider.Microsoft365.csproj"
+          "src/NexArc.Authentication.Utilities/NexArc.Authentication.Utilities.csproj"
+        )
+        for project in "${projects[@]}"; do
+          dotnet build "$project" -c Release /p:Version=${{ steps.version.outputs.VERSION }}
+        done
+
+    - name: Pack packages
+      run: |
+        projects=(
+          "src/NexArc.Authentication.Abstractions/NexArc.Authentication.Abstractions.csproj"
+          "src/NexArc.Authentication.Api/NexArc.Authentication.Api.csproj"
+          "src/NexArc.Authentication.Client/NexArc.Authentication.Client.csproj"
+          "src/NexArc.Authentication.DevBypass/NexArc.Authentication.DevBypass.csproj"
+          "src/NexArc.Authentication.DevicePairing/NexArc.Authentication.DevicePairing.csproj"
+          "src/NexArc.Authentication.MagicLink/NexArc.Authentication.MagicLink.csproj"
+          "src/NexArc.Authentication.Provider.Auth0B2C/NexArc.Authentication.Provider.Auth0B2C.csproj"
+          "src/NexArc.Authentication.Provider.AzureB2C/NexArc.Authentication.Provider.AzureB2C.csproj"
+          "src/NexArc.Authentication.Provider.GoogleWorkspace/NexArc.Authentication.Provider.GoogleWorkspace.csproj"
+          "src/NexArc.Authentication.Provider.Microsoft365/NexArc.Authentication.Provider.Microsoft365.csproj"
+          "src/NexArc.Authentication.Utilities/NexArc.Authentication.Utilities.csproj"
+        )
+        for project in "${projects[@]}"; do
+          dotnet pack "$project" -c Release --no-build /p:Version=${{ steps.version.outputs.VERSION }} -o ./packages
+        done
+
+    - name: Publish to NuGet.org
+      run: dotnet nuget push ./packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./packages/*.nupkg
