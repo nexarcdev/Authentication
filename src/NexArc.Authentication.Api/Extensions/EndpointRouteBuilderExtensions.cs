@@ -9,6 +9,7 @@ using NexArc.Authentication.Api.Models;
 using NexArc.Authentication.Api.Services;
 using NexArc.Authentication.DevBypass.Services;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace NexArc.Authentication.Api.Extensions;
 
@@ -89,6 +90,9 @@ public static class EndpointRouteBuilderExtensions
                 return Results.NotFound("Provider not registered.");
             }
 
+            var logger = services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("NexArc.Authentication.Api.TokenExchange");
+
             ExternalIdentity externalIdentity;
             try
             {
@@ -100,18 +104,38 @@ public static class EndpointRouteBuilderExtensions
                     AuthorizationCode = request.AuthorizationCode
                 }, ct);
             }
-            catch (SecurityTokenException)
+            catch (SecurityTokenException ex)
             {
-                return Results.Unauthorized();
+                logger.LogWarning(
+                    ex,
+                    "Token exchange failed for provider {ProviderKey}: token validation failed.",
+                    providerKey);
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Unauthorized",
+                    detail: "Token validation failed.");
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                return Results.Unauthorized();
+                logger.LogWarning(
+                    ex,
+                    "Token exchange failed for provider {ProviderKey}: unauthorized.",
+                    providerKey);
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Unauthorized",
+                    detail: "Unauthorized.");
             }
 
             if (string.IsNullOrWhiteSpace(externalIdentity.Subject))
             {
-                return Results.Unauthorized();
+                logger.LogWarning(
+                    "Token exchange failed for provider {ProviderKey}: validated identity missing subject.",
+                    providerKey);
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Unauthorized",
+                    detail: "Validated identity is missing required subject.");
             }
 
             var profileProvider = services.GetKeyedService<IExternalProfileProvider>(providerKey);

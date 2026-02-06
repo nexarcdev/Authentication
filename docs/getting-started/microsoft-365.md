@@ -43,15 +43,19 @@ app.Run();
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
+var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "microsoft-365";
+var providerScheme = builder.Configuration["Auth:Providers:Microsoft365:Scheme"] ?? providerKey;
+
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "microsoft-365";
+        options.ProviderKey = providerKey;
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderMicrosoft365(builder.Configuration.GetSection("Auth:Providers:Microsoft365"));
 
 builder.Services.AddAuthorization();
+builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -77,6 +81,8 @@ app.Run();
   }
 }
 ```
+
+Authority must be the Entra authority base URL (for example `https://login.microsoftonline.com/{tenantId}/v2.0`) and not the `/oauth2/v2.0/authorize` endpoint.
 
 ## Client Configuration
 ```json

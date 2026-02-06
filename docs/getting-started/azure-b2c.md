@@ -43,15 +43,19 @@ app.Run();
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
+var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "azure-b2c";
+var providerScheme = builder.Configuration["Auth:Providers:AzureB2C:Scheme"] ?? providerKey;
+
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "azure-b2c";
+        options.ProviderKey = providerKey;
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderAzureB2C(builder.Configuration.GetSection("Auth:Providers:AzureB2C"));
 
 builder.Services.AddAuthorization();
+builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -77,6 +81,8 @@ app.Run();
   }
 }
 ```
+
+Authority must be the B2C authority base URL and not the `/authorize` endpoint.
 
 ## Client Configuration
 ```json

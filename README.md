@@ -80,15 +80,19 @@ app.Run();
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
+var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
+var providerScheme = builder.Configuration["Auth:Providers:GoogleWorkspace:Scheme"] ?? providerKey;
+
 builder.Services
     .AddClientAuthentication(options =>
     {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
+        options.ProviderKey = providerKey;
         options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
     })
     .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
 
 builder.Services.AddAuthorization();
+builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -213,6 +217,7 @@ Device pairing (Client):
 Notes:
 - Use your hosting platform's secret store for `ClientSecret` values.
 - Do not enable `DevBypass` in production; startup fails outside `Development`.
+- For OIDC providers, set `Authority` to the provider authority/base URL (not the `/authorize` endpoint).
 
 ## Status
 - This repo is scaffolding for the packages and docs. The goal is a clean, standards-based auth stack that feels native to ASP.NET and Blazor.
