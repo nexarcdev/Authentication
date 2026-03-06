@@ -9,8 +9,9 @@ public class AuthenticationOptionsTests
     {
         var options = new AuthenticationOptions();
 
-        Assert.Equal(TimeSpan.FromMinutes(10), options.AccessTokenLifetime);
+        Assert.Equal(TimeSpan.FromHours(16), options.AccessTokenLifetime);
         Assert.True(options.RefreshTokensEnabled);
-        Assert.Equal(TimeSpan.FromDays(14), options.RefreshTokenLifetime);
+        Assert.Equal(TimeSpan.FromHours(16), options.RefreshTokenLifetime);
+        Assert.Equal(TimeSpan.FromDays(7), options.SessionAbsoluteLifetime);
     }
 }

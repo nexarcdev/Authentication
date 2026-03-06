@@ -24,7 +24,7 @@ public sealed class DevicePairingClientEndpoints : IClientEndpointModule
             IOptions<ClientAuthenticationOptions> clientOptions,
             CancellationToken ct) =>
         {
-            var client = httpClientFactory.CreateClient(clientOptions.Value.ApiClientName);
+            var client = httpClientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
             var response = await client.PostAsJsonAsync($"/auth/{settings.ProviderKey}/code", request, ct);
             if (!response.IsSuccessStatusCode)
             {
@@ -47,7 +47,7 @@ public sealed class DevicePairingClientEndpoints : IClientEndpointModule
                 return Results.BadRequest("Code is required.");
             }
 
-            var client = httpClientFactory.CreateClient(clientOptions.Value.ApiClientName);
+            var client = httpClientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
             var response = await client.PostAsJsonAsync($"/auth/{settings.ProviderKey}/resolve", request, ct);
             if (!response.IsSuccessStatusCode)
             {

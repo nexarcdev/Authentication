@@ -6,4 +6,5 @@ public sealed record TokenPair
     public DateTimeOffset AccessTokenExpiresAt { get; init; }
     public string? RefreshToken { get; init; }
     public DateTimeOffset? RefreshTokenExpiresAt { get; init; }
+    public DateTimeOffset? SessionExpiresAt { get; init; }
 }

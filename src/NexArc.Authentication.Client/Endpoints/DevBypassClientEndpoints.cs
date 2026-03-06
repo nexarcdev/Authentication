@@ -69,7 +69,7 @@ public sealed class DevBypassClientEndpoints : IClientEndpointModule
                 return Results.BadRequest("User is required.");
             }
 
-            var client = httpClientFactory.CreateClient(clientOptions.Value.ApiClientName);
+            var client = httpClientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
             var response = await client.PostAsJsonAsync(
                 $"/auth/exchange/{clientOptions.Value.ProviderKey}",
                 new { devBypassUser = user },

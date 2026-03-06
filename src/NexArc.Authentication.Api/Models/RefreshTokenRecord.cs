@@ -8,4 +8,6 @@ public sealed record RefreshTokenRecord
     public IssuedIdentity Identity { get; init; } = new();
     public DateTimeOffset ExpiresAt { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset SessionStartedAt { get; init; }
+    public DateTimeOffset? SessionExpiresAt { get; init; }
 }
