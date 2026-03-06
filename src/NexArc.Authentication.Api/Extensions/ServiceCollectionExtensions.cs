@@ -20,6 +20,11 @@ public static class ServiceCollectionExtensions
             .Configure(configure)
             .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "Issuer is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "Audience is required.")
+            .Validate(options => options.AccessTokenLifetime > TimeSpan.Zero, "AccessTokenLifetime must be greater than zero.")
+            .Validate(options => !options.RefreshTokensEnabled || options.RefreshTokenLifetime > TimeSpan.Zero, "RefreshTokenLifetime must be greater than zero when refresh tokens are enabled.")
+            .Validate(
+                options => options.SessionAbsoluteLifetime is null || options.SessionAbsoluteLifetime > TimeSpan.Zero,
+                "SessionAbsoluteLifetime must be greater than zero when configured.")
             .ValidateOnStart();
 
         services.TryAddSingleton(TimeProvider.System);

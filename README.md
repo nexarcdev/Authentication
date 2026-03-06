@@ -106,7 +106,38 @@ app.Run();
 2. Client exchanges external tokens with the API (`POST /auth/exchange/{providerKey}`)
 3. API validates the external token, normalizes identity, and issues API tokens
 4. Client uses API-issued access token on all API calls
-5. Optional refresh flow keeps sessions alive without frequent IdP prompts
+5. Automatic refresh keeps sessions alive without frequent IdP prompts
+
+## Default Session Policy
+- Access token lifetime: `16 hours`
+- Refresh tokens: enabled by default
+- Refresh token lifetime (sliding idle window): `16 hours`
+- Absolute session lifetime cap: `7 days`
+- Client automatic refresh: enabled by default (`RefreshBeforeExpiry = 1 minute`)
+
+You can override these defaults in the API setup:
+```csharp
+builder.Services.AddAppAuthentication(options =>
+{
+    options.Issuer = builder.Configuration["Auth:Issuer"];
+    options.Audience = builder.Configuration["Auth:Audience"];
+    options.AccessTokenLifetime = TimeSpan.FromHours(16);
+    options.RefreshTokensEnabled = true;
+    options.RefreshTokenLifetime = TimeSpan.FromHours(16);
+    options.SessionAbsoluteLifetime = TimeSpan.FromDays(7);
+});
+```
+
+You can also tune client refresh behavior:
+```csharp
+builder.Services.AddClientAuthentication(options =>
+{
+    options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
+    options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
+    options.AutomaticTokenRefreshEnabled = true;
+    options.RefreshBeforeExpiry = TimeSpan.FromMinutes(1);
+});
+```
 
 ## Magic Link and Device Pairing Requirements
 - API must register session storage + verification services via DI
@@ -140,6 +171,10 @@ ASP.NET configuration supports environment variables using `__` as the section s
 ### API (common)
 - `Auth__Issuer` (required)
 - `Auth__Audience` (required)
+- `Auth__AccessTokenLifetime` (optional)
+- `Auth__RefreshTokensEnabled` (optional)
+- `Auth__RefreshTokenLifetime` (optional)
+- `Auth__SessionAbsoluteLifetime` (optional)
 
 ### API (provider-specific)
 Google Workspace:
@@ -181,6 +216,9 @@ Device pairing (API):
 ### Client (common)
 - `Auth__ApiBaseUrl` (required)
 - `Auth__ProviderKey` (recommended; defaults per provider)
+- `Auth__AuthApiClientName` (optional)
+- `Auth__AutomaticTokenRefreshEnabled` (optional)
+- `Auth__RefreshBeforeExpiry` (optional)
 
 ### Client (provider-specific)
 Google Workspace:

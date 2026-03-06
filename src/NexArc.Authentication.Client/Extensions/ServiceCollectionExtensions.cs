@@ -24,6 +24,9 @@ public static class ServiceCollectionExtensions
             .Configure(configure)
             .Validate(options => !string.IsNullOrWhiteSpace(options.ProviderKey), "ProviderKey is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.ApiBaseUrl), "ApiBaseUrl is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ApiClientName), "ApiClientName is required.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.AuthApiClientName), "AuthApiClientName is required.")
+            .Validate(options => options.RefreshBeforeExpiry >= TimeSpan.Zero, "RefreshBeforeExpiry must be zero or greater.")
             .ValidateOnStart();
 
         services.TryAddSingleton<ITokenStore, InMemoryTokenStore>();
@@ -46,6 +49,12 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(options.ApiBaseUrl);
             })
             .AddHttpMessageHandler<ApiBearerTokenHandler>();
+
+        services.AddHttpClient(localOptions.AuthApiClientName, (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<ClientAuthenticationOptions>>().Value;
+            client.BaseAddress = new Uri(options.ApiBaseUrl);
+        });
 
         services.AddDevelopmentBypassGuard();
 

@@ -31,7 +31,7 @@ public sealed class MagicLinkClientEndpoints : IClientEndpointModule
                 return Results.BadRequest("Destination is required.");
             }
 
-            var client = httpClientFactory.CreateClient(clientOptions.Value.ApiClientName);
+            var client = httpClientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
             var response = await client.PostAsJsonAsync("/auth/magic-link/request", request, ct);
             if (!response.IsSuccessStatusCode)
             {
@@ -62,7 +62,7 @@ public sealed class MagicLinkClientEndpoints : IClientEndpointModule
                 return Results.BadRequest("Code is required.");
             }
 
-            var client = httpClientFactory.CreateClient(clientOptions.Value.ApiClientName);
+            var client = httpClientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
             var response = await client.PostAsJsonAsync("/auth/magic-link/redeem", request, ct);
             if (!response.IsSuccessStatusCode)
             {

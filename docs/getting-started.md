@@ -6,7 +6,26 @@ This guide provides the core flow and then directs you to provider-specific setu
 1. Client signs in with its configured IdP (OIDC Auth Code + PKCE)
 2. Client exchanges external tokens with the API (`POST /auth/exchange/{providerKey}`)
 3. API issues access tokens used for all API calls
-4. Optional refresh keeps sessions alive
+4. Automatic refresh keeps sessions alive
+
+## Default Session Policy
+- Access token lifetime: `16 hours`
+- Refresh token lifetime (sliding idle window): `16 hours`
+- Absolute session lifetime cap: `7 days`
+- Client automatic refresh: enabled (`RefreshBeforeExpiry = 1 minute`)
+
+Override example:
+```csharp
+builder.Services.AddAppAuthentication(options =>
+{
+    options.Issuer = builder.Configuration["Auth:Issuer"];
+    options.Audience = builder.Configuration["Auth:Audience"];
+    options.AccessTokenLifetime = TimeSpan.FromHours(16);
+    options.RefreshTokensEnabled = true;
+    options.RefreshTokenLifetime = TimeSpan.FromHours(16);
+    options.SessionAbsoluteLifetime = TimeSpan.FromDays(7);
+});
+```
 
 ## Install Packages
 API:

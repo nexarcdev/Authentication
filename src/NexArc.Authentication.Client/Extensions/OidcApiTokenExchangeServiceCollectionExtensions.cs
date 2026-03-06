@@ -55,7 +55,7 @@ public static class OidcApiTokenExchangeServiceCollectionExtensions
                         !string.IsNullOrWhiteSpace(accessToken),
                         true);
 
-                    var client = clientFactory.CreateClient(clientOptions.Value.ApiClientName);
+                    var client = clientFactory.CreateClient(clientOptions.Value.AuthApiClientName);
                     using var response = await client.PostAsJsonAsync(
                         $"/auth/exchange/{providerKey}",
                         new { AccessToken = accessToken, IdToken = idToken },

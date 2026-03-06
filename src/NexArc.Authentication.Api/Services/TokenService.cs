@@ -32,25 +32,50 @@ public sealed class TokenService : ITokenService
 
     public async Task<TokenPair> IssueAsync(IssuedIdentity identity, CancellationToken ct)
     {
+        var now = _timeProvider.GetUtcNow();
+        var sessionStartedAt = now;
+        var sessionExpiresAt = GetSessionExpiresAt(sessionStartedAt);
+        return await IssueAsync(identity, sessionStartedAt, sessionExpiresAt, now, ct);
+    }
+
+    private async Task<TokenPair> IssueAsync(
+        IssuedIdentity identity,
+        DateTimeOffset sessionStartedAt,
+        DateTimeOffset? sessionExpiresAt,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
         if (string.IsNullOrWhiteSpace(identity.Subject))
         {
             throw new InvalidOperationException("Subject is required for token issuance.");
         }
 
-        var now = _timeProvider.GetUtcNow();
         var sessionId = string.IsNullOrWhiteSpace(identity.SessionId)
             ? Guid.NewGuid().ToString("N")
             : identity.SessionId!;
 
-        var accessToken = CreateAccessToken(identity with { SessionId = sessionId }, now);
+        var accessTokenExpiresAt = ClampToSessionWindow(now.Add(_options.AccessTokenLifetime), sessionExpiresAt);
+        if (accessTokenExpiresAt <= now)
+        {
+            throw new InvalidOperationException("Cannot issue access token because the session has expired.");
+        }
+
+        var accessToken = CreateAccessToken(identity with { SessionId = sessionId }, now, accessTokenExpiresAt);
         var tokenPair = new TokenPair
         {
             AccessToken = accessToken,
-            AccessTokenExpiresAt = now.Add(_options.AccessTokenLifetime)
+            AccessTokenExpiresAt = accessTokenExpiresAt,
+            SessionExpiresAt = sessionExpiresAt
         };
 
         if (_options.RefreshTokensEnabled)
         {
+            var refreshTokenExpiresAt = ClampToSessionWindow(now.Add(_options.RefreshTokenLifetime), sessionExpiresAt);
+            if (refreshTokenExpiresAt <= now)
+            {
+                return tokenPair;
+            }
+
             var refreshToken = GenerateToken();
             var refreshTokenHash = ComputeHash(refreshToken);
 
@@ -59,13 +84,15 @@ public sealed class TokenService : ITokenService
                 TokenHash = refreshTokenHash,
                 Identity = identity with { SessionId = sessionId },
                 CreatedAt = now,
-                ExpiresAt = now.Add(_options.RefreshTokenLifetime)
+                ExpiresAt = refreshTokenExpiresAt,
+                SessionStartedAt = sessionStartedAt,
+                SessionExpiresAt = sessionExpiresAt
             }, ct);
 
             tokenPair = tokenPair with
             {
                 RefreshToken = refreshToken,
-                RefreshTokenExpiresAt = now.Add(_options.RefreshTokenLifetime)
+                RefreshTokenExpiresAt = refreshTokenExpiresAt
             };
         }
 
@@ -93,11 +120,24 @@ public sealed class TokenService : ITokenService
             return null;
         }
 
+        if (record.SessionExpiresAt.HasValue && record.SessionExpiresAt.Value <= now)
+        {
+            await _refreshTokenStore.RevokeAsync(tokenHash, ct);
+            return null;
+        }
+
+        var sessionStartedAt = record.SessionStartedAt == default
+            ? record.CreatedAt
+            : record.SessionStartedAt;
+
         await _refreshTokenStore.RevokeAsync(tokenHash, ct);
-        return await IssueAsync(record.Identity, ct);
+        return await IssueAsync(record.Identity, sessionStartedAt, record.SessionExpiresAt, now, ct);
     }
 
-    private string CreateAccessToken(IssuedIdentity identity, DateTimeOffset now)
+    private string CreateAccessToken(
+        IssuedIdentity identity,
+        DateTimeOffset now,
+        DateTimeOffset accessTokenExpiresAt)
     {
         var claims = new List<Claim>
         {
@@ -143,10 +183,32 @@ public sealed class TokenService : ITokenService
             audience: _options.Audience,
             claims: claims,
             notBefore: now.UtcDateTime,
-            expires: now.Add(_options.AccessTokenLifetime).UtcDateTime,
+            expires: accessTokenExpiresAt.UtcDateTime,
             signingCredentials: signingCredentials);
 
         return _tokenHandler.WriteToken(token);
+    }
+
+    private DateTimeOffset? GetSessionExpiresAt(DateTimeOffset sessionStartedAt)
+    {
+        if (_options.SessionAbsoluteLifetime is null)
+        {
+            return null;
+        }
+
+        return sessionStartedAt.Add(_options.SessionAbsoluteLifetime.Value);
+    }
+
+    private static DateTimeOffset ClampToSessionWindow(DateTimeOffset candidate, DateTimeOffset? sessionExpiresAt)
+    {
+        if (!sessionExpiresAt.HasValue)
+        {
+            return candidate;
+        }
+
+        return candidate <= sessionExpiresAt.Value
+            ? candidate
+            : sessionExpiresAt.Value;
     }
 
     private static string GenerateToken()

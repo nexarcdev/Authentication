@@ -11,8 +11,7 @@ namespace NexArc.Authentication.Client.Authentication;
 
 public sealed class TokenStoreAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private readonly ITokenStore _tokenStore;
-    private readonly TimeProvider _timeProvider;
+    private readonly IApiAccessTokenProvider _accessTokenProvider;
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
     #pragma warning disable CS0618
@@ -21,34 +20,27 @@ public sealed class TokenStoreAuthenticationHandler : AuthenticationHandler<Auth
         ILoggerFactory logger,
         UrlEncoder encoder,
         ISystemClock clock,
-        TimeProvider timeProvider,
-        ITokenStore tokenStore)
+        IApiAccessTokenProvider accessTokenProvider)
         : base(options, logger, encoder, clock)
     {
-        _tokenStore = tokenStore;
-        _timeProvider = timeProvider;
+        _accessTokenProvider = accessTokenProvider;
     }
     #pragma warning restore CS0618
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var tokenPair = await _tokenStore.GetAsync(Context.RequestAborted);
-        if (tokenPair is null)
+        var accessToken = await _accessTokenProvider.GetAccessTokenAsync(Context.RequestAborted);
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             return AuthenticateResult.NoResult();
         }
 
-        if (tokenPair.AccessTokenExpiresAt <= _timeProvider.GetUtcNow())
-        {
-            return AuthenticateResult.NoResult();
-        }
-
-        if (!_tokenHandler.CanReadToken(tokenPair.AccessToken))
+        if (!_tokenHandler.CanReadToken(accessToken))
         {
             return AuthenticateResult.Fail("Invalid access token.");
         }
 
-        var jwt = _tokenHandler.ReadJwtToken(tokenPair.AccessToken);
+        var jwt = _tokenHandler.ReadJwtToken(accessToken);
         var identity = new ClaimsIdentity(
             jwt.Claims,
             TokenStoreAuthenticationDefaults.AuthenticationScheme,
