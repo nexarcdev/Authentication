@@ -2,11 +2,17 @@
 
 This guide provides the core flow and then directs you to provider-specific setup steps.
 
-## Core Flow (All Providers)
+## Core Flows
+OIDC web client:
 1. Client signs in with its configured IdP (OIDC Auth Code + PKCE)
 2. Client exchanges external tokens with the API (`POST /auth/exchange/{providerKey}`)
 3. API issues access tokens used for all API calls
 4. Automatic refresh keeps sessions alive
+
+Non-OIDC client:
+1. Client completes the provider-specific interaction
+2. Client calls the provider-specific API endpoint
+3. API issues access tokens used for all API calls
 
 ## Default Session Policy
 - Access token lifetime: `16 hours`
@@ -16,10 +22,12 @@ This guide provides the core flow and then directs you to provider-specific setu
 
 Override example:
 ```csharp
-builder.Services.AddAppAuthentication(options =>
+var auth = builder.Configuration.GetRequiredSection("Auth");
+
+builder.Services.AddApiAuthentication(options =>
 {
-    options.Issuer = builder.Configuration["Auth:Issuer"];
-    options.Audience = builder.Configuration["Auth:Audience"];
+    options.Issuer = auth["Issuer"];
+    options.Audience = auth["Audience"];
     options.AccessTokenLifetime = TimeSpan.FromHours(16);
     options.RefreshTokensEnabled = true;
     options.RefreshTokenLifetime = TimeSpan.FromHours(16);
@@ -57,14 +65,11 @@ The API may be internal-only. Public-facing interactions (magic link and device 
 ## Program.cs (API)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var googleWorkspace = auth.GetRequiredSection("Providers").GetRequiredSection("GoogleWorkspace");
 
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderGoogleWorkspace(googleWorkspace);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -73,19 +78,14 @@ app.MapAuthentication();
 app.Run();
 ```
 
-## Program.cs (Client)
+## Program.cs (OIDC Web Client)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var googleWorkspace = auth.GetRequiredSection("Providers").GetRequiredSection("GoogleWorkspace");
 
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
-
-builder.Services.AddAuthorization();
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderGoogleWorkspace(googleWorkspace);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -93,6 +93,34 @@ app.UseAuthorization();
 app.MapClientAuthentication(); // sets up /login, /logout, /auth/dev-login, plus provider client endpoints
 app.Run();
 ```
+
+## Program.cs (Non-OIDC Client)
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var magicLink = auth.GetRequiredSection("Providers").GetRequiredSection("MagicLink");
+
+builder.AddClientAuthentication(auth);
+builder.Services.AddProviderMagicLink(magicLink);
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication();
+app.Run();
+```
+
+Prefer the configuration-based bootstrap helpers for the standard setup path:
+- Hosted API: `AddApiAuthentication(auth)` then explicit `AddProvider...(...)`
+- OIDC web client: `AddOidcClientAuthentication(auth)` then explicit `AddProvider...(...)`
+- Non-OIDC client: `AddClientAuthentication(auth)` then explicit `AddProvider...(...)`
+
+The standard entry points are role- and flow-specific:
+- `AddApiAuthentication(auth)` for token-issuing API hosts
+- `AddOidcClientAuthentication(auth)` for OIDC web clients
+- `AddClientAuthentication(auth)` for non-OIDC clients such as magic link and device pairing
+
+For advanced composition, the `Action<...>` overloads of `AddApiAuthentication(...)` and `AddClientAuthentication(...)`, along with `AddApiTokenExchangeOnOidcSignIn(...)`, remain available.
 
 Replace the provider and configuration section with the guide for your chosen provider below.
 
@@ -112,13 +140,13 @@ Provider API endpoints (examples):
 Source: API endpoint mappings created by `MapAuthentication` plus provider-specific API modules.
 
 ## Client-Side Endpoints (OIDC Callbacks)
-OIDC callbacks are handled by the client app, not the API. `MapAuthentication` is API-only; clients use `MapClientAuthentication` for their mapped endpoints.
+OIDC callbacks are handled by the client app, not the API. `MapAuthentication` is API-only; OIDC clients use `MapClientAuthentication` plus `AddOidcClientAuthentication(auth)`.
 
 Client callback endpoints (examples):
 - `GET /signin-oidc` – default OIDC callback path
 - `GET /signout-callback-oidc` – optional sign-out callback
 
-Source: OpenIdConnect handler registered by `AddClientAuthentication` (middleware-owned endpoints).
+Source: OpenIdConnect handler registered by the OIDC provider package and configured for token exchange by `AddOidcClientAuthentication(auth)`.
 
 ## Client-Side Mapped Endpoints (All Clients)
 `MapClientAuthentication` registers:
@@ -146,10 +174,13 @@ This can be overridden to support multiple instances of the same provider (e.g.,
 Override with `ProviderKey` and `Scheme` in the provider configuration section.
 
 ## Choose Your Provider
+### OIDC Web Providers
 - [Azure B2C](getting-started/azure-b2c.md)
 - [Auth0 (B2C)](getting-started/auth0-b2c.md)
 - [Google Workspace (SSO)](getting-started/google-workspace.md)
 - [Microsoft 365 (SSO)](getting-started/microsoft-365.md)
+
+### Non-OIDC Providers
 - [Device Pairing](getting-started/device-pairing.md)
 - [Magic Link](getting-started/magic-link.md)
 

@@ -2,12 +2,12 @@ using NexArc.Authentication.Abstractions.Options;
 
 namespace NexArc.Authentication.Abstractions.Tests;
 
-public class AuthenticationOptionsTests
+public class ApiAuthenticationOptionsTests
 {
     [Fact]
     public void Defaults_Are_Sane()
     {
-        var options = new AuthenticationOptions();
+        var options = new ApiAuthenticationOptions();
 
         Assert.Equal(TimeSpan.FromHours(16), options.AccessTokenLifetime);
         Assert.True(options.RefreshTokensEnabled);

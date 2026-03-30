@@ -30,12 +30,14 @@ A set of NuGet packages that provides a clean, standards-based authentication mo
 - Provider packages (one per IdP) - client wiring + API validation
 
 ## Supported Providers
-- Google Workspace (SSO)
-- Microsoft 365 (Entra ID)
-- Azure AD B2C
-- Auth0 (B2C)
-- Magic link (code + link)
-- Device pairing (short code + optional QR)
+- OIDC web providers:
+  - Google Workspace (SSO)
+  - Microsoft 365 (Entra ID)
+  - Azure AD B2C
+  - Auth0 (B2C)
+- Non-OIDC providers:
+  - Magic link (code + link)
+  - Device pairing (short code + optional QR)
 
 ## Quick Start
 
@@ -56,18 +58,16 @@ dotnet add package NexArc.Authentication.Provider.GoogleWorkspace
 
 Replace the provider package with the one you are using (AzureB2C, Auth0B2C, Microsoft365, GoogleWorkspace, MagicLink, DevicePairing).
 
-### 1) API
+### 1) Hosted API
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var providers = auth.GetRequiredSection("Providers");
 
+builder.AddApiAuthentication(auth);
 builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"))
-    .AddProviderAzureB2C(builder.Configuration.GetSection("Auth:Providers:AzureB2C"));
+    .AddProviderGoogleWorkspace(providers.GetRequiredSection("GoogleWorkspace"))
+    .AddProviderAzureB2C(providers.GetRequiredSection("AzureB2C"));
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -76,37 +76,62 @@ app.MapAuthentication();
 app.Run();
 ```
 
-### 2) Client App (Blazor or ASP.NET UI)
+### 2) OIDC Web Client (Blazor or ASP.NET UI)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var googleWorkspace = auth.GetRequiredSection("Providers").GetRequiredSection("GoogleWorkspace");
 
-var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
-var providerScheme = builder.Configuration["Auth:Providers:GoogleWorkspace:Scheme"] ?? providerKey;
-
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = providerKey;
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
-
-builder.Services.AddAuthorization();
-builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderGoogleWorkspace(googleWorkspace);
 
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapClientAuthentication(); // adds /login, /logout, /auth/dev-login, plus provider client endpoints
+app.MapClientAuthentication();
 app.Run();
 ```
 
-## How It Works (Token Exchange)
+### 3) Non-OIDC Client
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var magicLink = auth.GetRequiredSection("Providers").GetRequiredSection("MagicLink");
+
+builder.AddClientAuthentication(auth);
+builder.Services.AddProviderMagicLink(magicLink);
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication();
+app.Run();
+```
+
+Preferred setup patterns:
+- Hosted API: `AddApiAuthentication(auth)` then explicit `AddProvider...(...)`
+- OIDC web client: `AddOidcClientAuthentication(auth)` then explicit `AddProvider...(...)`
+- Non-OIDC client: `AddClientAuthentication(auth)` then explicit `AddProvider...(...)`
+
+The standard entry points are role- and flow-specific:
+- `AddApiAuthentication(auth)` for token-issuing API hosts
+- `AddOidcClientAuthentication(auth)` for OIDC web clients
+- `AddClientAuthentication(auth)` for non-OIDC clients such as magic link and device pairing
+
+For advanced composition, the `Action<...>` overloads of `AddApiAuthentication(...)` and `AddClientAuthentication(...)`, along with `AddApiTokenExchangeOnOidcSignIn(...)`, remain available.
+
+## How It Works
+OIDC web client flow:
 1. Client signs in with its configured IdP using OIDC (Auth Code + PKCE)
 2. Client exchanges external tokens with the API (`POST /auth/exchange/{providerKey}`)
 3. API validates the external token, normalizes identity, and issues API tokens
 4. Client uses API-issued access token on all API calls
 5. Automatic refresh keeps sessions alive without frequent IdP prompts
+
+Non-OIDC client flow:
+1. Client completes the provider-specific interaction, such as redeeming a magic link or resolving a device pairing code
+2. Client calls the provider-specific API endpoint
+3. API issues first-party tokens used for subsequent API calls
 
 ## Default Session Policy
 - Access token lifetime: `16 hours`
@@ -117,10 +142,12 @@ app.Run();
 
 You can override these defaults in the API setup:
 ```csharp
-builder.Services.AddAppAuthentication(options =>
+var auth = builder.Configuration.GetRequiredSection("Auth");
+
+builder.Services.AddApiAuthentication(options =>
 {
-    options.Issuer = builder.Configuration["Auth:Issuer"];
-    options.Audience = builder.Configuration["Auth:Audience"];
+    options.Issuer = auth["Issuer"];
+    options.Audience = auth["Audience"];
     options.AccessTokenLifetime = TimeSpan.FromHours(16);
     options.RefreshTokensEnabled = true;
     options.RefreshTokenLifetime = TimeSpan.FromHours(16);
@@ -130,10 +157,12 @@ builder.Services.AddAppAuthentication(options =>
 
 You can also tune client refresh behavior:
 ```csharp
+var auth = builder.Configuration.GetRequiredSection("Auth");
+
 builder.Services.AddClientAuthentication(options =>
 {
-    options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
-    options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
+    options.ProviderKey = auth["ProviderKey"] ?? "google-workspace";
+    options.ApiBaseUrl = auth["ApiBaseUrl"];
     options.AutomaticTokenRefreshEnabled = true;
     options.RefreshBeforeExpiry = TimeSpan.FromMinutes(1);
 });

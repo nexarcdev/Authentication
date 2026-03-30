@@ -11,7 +11,7 @@ public class TokenServiceTests
     [Fact]
     public async Task IssueAsync_Returns_Access_And_Refresh_Tokens()
     {
-        var options = new AuthenticationOptions
+        var options = new ApiAuthenticationOptions
         {
             Issuer = "https://issuer.example",
             Audience = "api",
@@ -44,7 +44,7 @@ public class TokenServiceTests
     [Fact]
     public async Task RefreshAsync_Issues_New_Token_Pair()
     {
-        var options = new AuthenticationOptions
+        var options = new ApiAuthenticationOptions
         {
             Issuer = "https://issuer.example",
             Audience = "api",
@@ -76,7 +76,7 @@ public class TokenServiceTests
     {
         var now = new DateTimeOffset(2026, 3, 5, 12, 0, 0, TimeSpan.Zero);
         var timeProvider = new FakeTimeProvider(now);
-        var options = new AuthenticationOptions
+        var options = new ApiAuthenticationOptions
         {
             Issuer = "https://issuer.example",
             Audience = "api",
@@ -106,7 +106,7 @@ public class TokenServiceTests
     {
         var now = new DateTimeOffset(2026, 3, 5, 12, 0, 0, TimeSpan.Zero);
         var timeProvider = new FakeTimeProvider(now);
-        var options = new AuthenticationOptions
+        var options = new ApiAuthenticationOptions
         {
             Issuer = "https://issuer.example",
             Audience = "api",

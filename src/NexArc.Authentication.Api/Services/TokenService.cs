@@ -12,14 +12,14 @@ namespace NexArc.Authentication.Api.Services;
 
 public sealed class TokenService : ITokenService
 {
-    private readonly AuthenticationOptions _options;
+    private readonly ApiAuthenticationOptions _options;
     private readonly ISigningKeyProvider _signingKeyProvider;
     private readonly IRefreshTokenStore _refreshTokenStore;
     private readonly TimeProvider _timeProvider;
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
     public TokenService(
-        IOptions<AuthenticationOptions> options,
+        IOptions<ApiAuthenticationOptions> options,
         ISigningKeyProvider signingKeyProvider,
         IRefreshTokenStore refreshTokenStore,
         TimeProvider timeProvider)

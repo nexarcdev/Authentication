@@ -1,6 +1,6 @@
 namespace NexArc.Authentication.Abstractions.Options;
 
-public sealed class AuthenticationOptions
+public sealed class ApiAuthenticationOptions
 {
     public string Issuer { get; set; } = string.Empty;
     public string Audience { get; set; } = string.Empty;

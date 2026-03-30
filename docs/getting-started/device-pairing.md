@@ -1,27 +1,63 @@
-﻿# Device Pairing (Getting Started)
+# Device Pairing (Getting Started)
 
 ## Summary
-Device pairing allows a constrained device to authenticate by pairing with a signed-in client. It uses a short-lived code plus optional QR code to complete pairing and exchange for API tokens.
+Flow type: non-OIDC client.
+
+Device pairing allows a constrained device to authenticate by pairing with a signed-in client. It uses a short-lived code plus optional QR payload to complete the pairing flow and obtain API-issued tokens.
+
+## Standard Setup
+### Program.cs (API)
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var devicePairing = auth.GetRequiredSection("Providers").GetRequiredSection("DevicePairing");
+
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderDevicePairing(devicePairing);
+
+builder.Services.AddScoped<IDevicePairingSessionStore, DevicePairingSessionStore>();
+builder.Services.AddScoped<IDevicePairingVerifier, DevicePairingVerifier>();
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapAuthentication();
+app.Run();
+```
+
+### Program.cs (Client)
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var devicePairing = auth.GetRequiredSection("Providers").GetRequiredSection("DevicePairing");
+
+builder.AddClientAuthentication(auth);
+builder.Services.AddProviderDevicePairing(devicePairing);
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapClientAuthentication();
+app.Run();
+```
 
 ## Endpoints
 API:
 - `POST /auth/device-pairing/code`
 - `POST /auth/device-pairing/resolve`
 - `GET /auth/device-pairing/qr/{code}` (optional)
-Source: API endpoint mappings created by `MapAuthentication` plus the device pairing module.
 
 Client:
+- `GET /login`
+- `GET|POST /logout`
+- `GET|POST /auth/dev-login`
 - `POST /device-pairing/code`
 - `POST /device-pairing/resolve`
 - `GET /device-pairing/qr/{code}`
-Source: client endpoint mappings created by `MapClientAuthentication`.
 
 Paths assume the default provider key `device-pairing`. If you override `ProviderKey`, replace the prefix accordingly.
 
 ## Required API Services
-The API owns the pairing workflow and must provide storage and verification via DI.
-
-Example interfaces:
 ```csharp
 public interface IDevicePairingSessionStore
 {
@@ -35,69 +71,6 @@ public interface IDevicePairingVerifier
     Task<DevicePairingApproval> ApproveAsync(DevicePairingSession session, CancellationToken ct);
 }
 ```
-
-API registration example:
-```csharp
-builder.Services.AddScoped<IDevicePairingSessionStore, DevicePairingSessionStore>();
-builder.Services.AddScoped<IDevicePairingVerifier, DevicePairingVerifier>();
-```
-
-How the library finds these:
-- The provider resolves them from DI at runtime
-- Missing registrations are treated as startup errors
-
-## Scheme and Endpoint Key
-Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple device pairing experiences in the same app.
-Override with `ProviderKey` and `Scheme` in the provider configuration section.
-
-## Program.cs (API)
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderDevicePairing(builder.Configuration.GetSection("Auth:Providers:DevicePairing"));
-
-builder.Services.AddScoped<IDevicePairingSessionStore, DevicePairingSessionStore>();
-builder.Services.AddScoped<IDevicePairingVerifier, DevicePairingVerifier>();
-
-var app = builder.Build();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapAuthentication();
-app.Run();
-```
-
-## Program.cs (Client)
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "device-pairing";
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderDevicePairing(builder.Configuration.GetSection("Auth:Providers:DevicePairing"));
-
-builder.Services.AddAuthorization();
-
-var app = builder.Build();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapClientAuthentication();
-app.Run();
-```
-
-## Flow
-1. Device requests a pairing code from the API
-2. API generates a short-lived code (and optional QR payload)
-3. User enters the code on a signed-in client
-4. API validates the pairing and issues tokens for the device
 
 ## API Configuration
 ```json
@@ -116,8 +89,6 @@ app.Run();
   }
 }
 ```
-
-`PairingUrl` is used by the API to build the QR payload returned from `POST /auth/{providerKey}/code` and `GET /auth/{providerKey}/qr/{code}`.
 
 ## Client Configuration
 ```json
@@ -159,5 +130,5 @@ Behavior:
 - When enabled in Development, pairing requests are auto-approved for configured devices
 - The API still enforces code lifetime and single-use semantics
 
-## Uses Secure Code Generator
-See [Secure Code Generator](secure-code-generator.md) for details on allowed alphabets and QR payloads.
+## Advanced Composition
+If you need custom composition, keep `AddProviderDevicePairing(...)` explicit and use the `Action<ApiAuthenticationOptions>` overload of `AddApiAuthentication(...)` on the API or the `Action<ClientAuthenticationOptions>` overload of `AddClientAuthentication(...)` on the client.

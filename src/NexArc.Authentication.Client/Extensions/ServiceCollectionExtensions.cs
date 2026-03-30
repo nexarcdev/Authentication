@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,4 +61,42 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddClientAuthentication(
+        this IServiceCollection services,
+        IConfigurationSection authSection)
+    {
+        var options = new ClientAuthenticationOptions();
+        authSection.Bind(options);
+
+        if (string.IsNullOrWhiteSpace(options.ProviderKey))
+            throw new InvalidOperationException("Configuration value 'Auth:ProviderKey' is required.");
+
+        if (!IsHttpUrl(options.ApiBaseUrl))
+            throw new InvalidOperationException("Configuration value 'Auth:ApiBaseUrl' must be set to an absolute http(s) URL.");
+
+        services.AddClientAuthentication(configured => authSection.Bind(configured));
+        services.AddAuthorization();
+
+        return services;
+    }
+
+    public static IServiceCollection AddOidcClientAuthentication(
+        this IServiceCollection services,
+        IConfigurationSection authSection)
+    {
+        services.AddClientAuthentication(authSection);
+
+        var providerKey = authSection["ProviderKey"];
+        if (string.IsNullOrWhiteSpace(providerKey))
+            throw new InvalidOperationException("Configuration value 'Auth:ProviderKey' is required.");
+
+        services.AddApiTokenExchangeOnOidcSignIn(providerKey);
+        return services;
+    }
+
+    private static bool IsHttpUrl(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && (value.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("http://", StringComparison.OrdinalIgnoreCase));
 }

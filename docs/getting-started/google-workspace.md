@@ -1,36 +1,19 @@
-﻿# Google Workspace (SSO) (Getting Started)
+# Google Workspace (SSO) (Getting Started)
 
 ## Summary
-Use Google Workspace as the client IdP for workforce SSO. The API validates Google tokens during exchange and issues API tokens.
+Flow type: OIDC web client.
 
-## Endpoints
-API:
-- `POST /auth/exchange/google-workspace`
-- `POST /auth/refresh`
-Source: API endpoint mappings created by `MapAuthentication`.
+Use Google Workspace as the external identity provider for workforce SSO. The API validates Google tokens during exchange and issues first-party API tokens.
 
-Client:
-- `GET /signin-oidc`
-- `GET /signout-callback-oidc` (optional)
-Source: OpenIdConnect handler registered by `AddClientAuthentication`.
-
-Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
-
-## Scheme and Endpoint Key
-Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Google Workspace instances in the same app.
-Override with `ProviderKey` and `Scheme` in the provider configuration section.
-
-## Program.cs (API)
+## Standard Setup
+### Program.cs (API)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var googleWorkspace = auth.GetRequiredSection("Providers").GetRequiredSection("GoogleWorkspace");
 
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderGoogleWorkspace(googleWorkspace);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -39,19 +22,14 @@ app.MapAuthentication();
 app.Run();
 ```
 
-## Program.cs (Client)
+### Program.cs (Client)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var googleWorkspace = auth.GetRequiredSection("Providers").GetRequiredSection("GoogleWorkspace");
 
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "google-workspace";
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderGoogleWorkspace(builder.Configuration.GetSection("Auth:Providers:GoogleWorkspace"));
-
-builder.Services.AddAuthorization();
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderGoogleWorkspace(googleWorkspace);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -59,6 +37,18 @@ app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
+
+## Endpoints
+API:
+- `POST /auth/exchange/google-workspace`
+- `POST /auth/refresh`
+
+Client:
+- `GET /login`
+- `GET|POST /logout`
+- `GET|POST /auth/dev-login`
+- `GET /signin-oidc`
+- `GET /signout-callback-oidc` (optional)
 
 ## API Configuration
 ```json
@@ -118,3 +108,6 @@ app.Run();
   }
 }
 ```
+
+## Advanced Composition
+If you need custom composition, keep `AddProviderGoogleWorkspace(...)` explicit and use `AddClientAuthentication(...)` plus `AddApiTokenExchangeOnOidcSignIn(...)` on the client, or the `Action<ApiAuthenticationOptions>` overload of `AddApiAuthentication(...)` on the API.

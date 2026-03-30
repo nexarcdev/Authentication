@@ -1,36 +1,19 @@
-﻿# Auth0 (B2C) (Getting Started)
+# Auth0 (B2C) (Getting Started)
 
 ## Summary
-Use Auth0 as the client IdP in a consumer (B2C) scenario. The API validates Auth0 tokens during exchange and issues API tokens.
+Flow type: OIDC web client.
 
-## Endpoints
-API:
-- `POST /auth/exchange/auth0-b2c`
-- `POST /auth/refresh`
-Source: API endpoint mappings created by `MapAuthentication`.
+Use Auth0 as the external identity provider for a consumer web client. The API validates Auth0 tokens during exchange and issues first-party API tokens.
 
-Client:
-- `GET /signin-oidc`
-- `GET /signout-callback-oidc` (optional)
-Source: OpenIdConnect handler registered by `AddClientAuthentication`.
-
-Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
-
-## Scheme and Endpoint Key
-Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Auth0 instances in the same app.
-Override with `ProviderKey` and `Scheme` in the provider configuration section.
-
-## Program.cs (API)
+## Standard Setup
+### Program.cs (API)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var auth0B2C = auth.GetRequiredSection("Providers").GetRequiredSection("Auth0B2C");
 
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderAuth0B2C(builder.Configuration.GetSection("Auth:Providers:Auth0B2C"));
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderAuth0B2C(auth0B2C);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -39,19 +22,14 @@ app.MapAuthentication();
 app.Run();
 ```
 
-## Program.cs (Client)
+### Program.cs (Client)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var auth0B2C = auth.GetRequiredSection("Providers").GetRequiredSection("Auth0B2C");
 
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = builder.Configuration["Auth:ProviderKey"] ?? "auth0-b2c";
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderAuth0B2C(builder.Configuration.GetSection("Auth:Providers:Auth0B2C"));
-
-builder.Services.AddAuthorization();
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderAuth0B2C(auth0B2C);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -59,6 +37,18 @@ app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
+
+## Endpoints
+API:
+- `POST /auth/exchange/auth0-b2c`
+- `POST /auth/refresh`
+
+Client:
+- `GET /login`
+- `GET|POST /logout`
+- `GET|POST /auth/dev-login`
+- `GET /signin-oidc`
+- `GET /signout-callback-oidc` (optional)
 
 ## API Configuration
 ```json
@@ -113,3 +103,6 @@ app.Run();
   }
 }
 ```
+
+## Advanced Composition
+If you need custom composition, keep `AddProviderAuth0B2C(...)` explicit and use `AddClientAuthentication(...)` plus `AddApiTokenExchangeOnOidcSignIn(...)` on the client, or the `Action<ApiAuthenticationOptions>` overload of `AddApiAuthentication(...)` on the API.

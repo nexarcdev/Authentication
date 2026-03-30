@@ -1,36 +1,19 @@
-﻿# Microsoft 365 (SSO) (Getting Started)
+# Microsoft 365 (SSO) (Getting Started)
 
 ## Summary
-Use Microsoft 365 (Entra ID) as the client IdP for workforce SSO. The API validates Entra ID tokens during exchange and issues API tokens.
+Flow type: OIDC web client.
 
-## Endpoints
-API:
-- `POST /auth/exchange/microsoft-365`
-- `POST /auth/refresh`
-Source: API endpoint mappings created by `MapAuthentication`.
+Use Microsoft 365 (Entra ID) as the external identity provider for workforce SSO. The API validates Entra ID tokens during exchange and issues first-party API tokens.
 
-Client:
-- `GET /signin-oidc`
-- `GET /signout-callback-oidc` (optional)
-Source: OpenIdConnect handler registered by `AddClientAuthentication`.
-
-Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
-
-## Scheme and Endpoint Key
-Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Microsoft 365 instances in the same app.
-Override with `ProviderKey` and `Scheme` in the provider configuration section.
-
-## Program.cs (API)
+## Standard Setup
+### Program.cs (API)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var microsoft365 = auth.GetRequiredSection("Providers").GetRequiredSection("Microsoft365");
 
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderMicrosoft365(builder.Configuration.GetSection("Auth:Providers:Microsoft365"));
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderMicrosoft365(microsoft365);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -39,23 +22,14 @@ app.MapAuthentication();
 app.Run();
 ```
 
-## Program.cs (Client)
+### Program.cs (Client)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var microsoft365 = auth.GetRequiredSection("Providers").GetRequiredSection("Microsoft365");
 
-var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "microsoft-365";
-var providerScheme = builder.Configuration["Auth:Providers:Microsoft365:Scheme"] ?? providerKey;
-
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = providerKey;
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderMicrosoft365(builder.Configuration.GetSection("Auth:Providers:Microsoft365"));
-
-builder.Services.AddAuthorization();
-builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderMicrosoft365(microsoft365);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -63,6 +37,18 @@ app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
+
+## Endpoints
+API:
+- `POST /auth/exchange/microsoft-365`
+- `POST /auth/refresh`
+
+Client:
+- `GET /login`
+- `GET|POST /logout`
+- `GET|POST /auth/dev-login`
+- `GET /signin-oidc`
+- `GET /signout-callback-oidc` (optional)
 
 ## API Configuration
 ```json
@@ -82,7 +68,7 @@ app.Run();
 }
 ```
 
-Authority must be the Entra authority base URL (for example `https://login.microsoftonline.com/{tenantId}/v2.0`) and not the `/oauth2/v2.0/authorize` endpoint.
+Authority must be the Entra authority base URL, not the `/oauth2/v2.0/authorize` endpoint.
 
 ## Client Configuration
 ```json
@@ -119,3 +105,6 @@ Authority must be the Entra authority base URL (for example `https://login.micro
   }
 }
 ```
+
+## Advanced Composition
+If you need custom composition, keep `AddProviderMicrosoft365(...)` explicit and use `AddClientAuthentication(...)` plus `AddApiTokenExchangeOnOidcSignIn(...)` on the client, or the `Action<ApiAuthenticationOptions>` overload of `AddApiAuthentication(...)` on the API.

@@ -1,36 +1,19 @@
-﻿# Azure B2C (Getting Started)
+# Azure B2C (Getting Started)
 
 ## Summary
-Use Azure AD B2C as the client IdP. The API validates B2C tokens during exchange and issues API tokens.
+Flow type: OIDC web client.
 
-## Endpoints
-API:
-- `POST /auth/exchange/azure-b2c`
-- `POST /auth/refresh`
-Source: API endpoint mappings created by `MapAuthentication`.
+Use Azure AD B2C as the external identity provider for a web client. The API validates Azure B2C tokens during exchange and issues first-party API tokens.
 
-Client:
-- `GET /signin-oidc`
-- `GET /signout-callback-oidc` (optional)
-Source: OpenIdConnect handler registered by `AddClientAuthentication`.
-
-Note: `MapClientAuthentication` adds `/login`, `/logout`, and dev bypass helpers. OIDC callbacks are still handled by the middleware.
-
-## Scheme and Endpoint Key
-Set a unique scheme/key for this provider to control auth filtering and endpoint naming. Override it if you need multiple Azure B2C instances in the same app.
-Override with `ProviderKey` and `Scheme` in the provider configuration section.
-
-## Program.cs (API)
+## Standard Setup
+### Program.cs (API)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var azureB2C = auth.GetRequiredSection("Providers").GetRequiredSection("AzureB2C");
 
-builder.Services
-    .AddAppAuthentication(options =>
-    {
-        options.Issuer = builder.Configuration["Auth:Issuer"];
-        options.Audience = builder.Configuration["Auth:Audience"];
-    })
-    .AddProviderAzureB2C(builder.Configuration.GetSection("Auth:Providers:AzureB2C"));
+builder.AddApiAuthentication(auth);
+builder.Services.AddProviderAzureB2C(azureB2C);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -39,23 +22,14 @@ app.MapAuthentication();
 app.Run();
 ```
 
-## Program.cs (Client)
+### Program.cs (Client)
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+var auth = builder.Configuration.GetRequiredSection("Auth");
+var azureB2C = auth.GetRequiredSection("Providers").GetRequiredSection("AzureB2C");
 
-var providerKey = builder.Configuration["Auth:ProviderKey"] ?? "azure-b2c";
-var providerScheme = builder.Configuration["Auth:Providers:AzureB2C:Scheme"] ?? providerKey;
-
-builder.Services
-    .AddClientAuthentication(options =>
-    {
-        options.ProviderKey = providerKey;
-        options.ApiBaseUrl = builder.Configuration["Auth:ApiBaseUrl"];
-    })
-    .AddProviderAzureB2C(builder.Configuration.GetSection("Auth:Providers:AzureB2C"));
-
-builder.Services.AddAuthorization();
-builder.Services.AddApiTokenExchangeOnOidcSignIn(providerScheme, providerKey);
+builder.AddOidcClientAuthentication(auth);
+builder.Services.AddProviderAzureB2C(azureB2C);
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -63,6 +37,18 @@ app.UseAuthorization();
 app.MapClientAuthentication();
 app.Run();
 ```
+
+## Endpoints
+API:
+- `POST /auth/exchange/azure-b2c`
+- `POST /auth/refresh`
+
+Client:
+- `GET /login`
+- `GET|POST /logout`
+- `GET|POST /auth/dev-login`
+- `GET /signin-oidc`
+- `GET /signout-callback-oidc` (optional)
 
 ## API Configuration
 ```json
@@ -82,7 +68,7 @@ app.Run();
 }
 ```
 
-Authority must be the B2C authority base URL and not the `/authorize` endpoint.
+Authority must be the B2C authority base URL, not the `/authorize` endpoint.
 
 ## Client Configuration
 ```json
@@ -119,3 +105,6 @@ Authority must be the B2C authority base URL and not the `/authorize` endpoint.
   }
 }
 ```
+
+## Advanced Composition
+If you need custom composition, keep `AddProviderAzureB2C(...)` explicit and use `AddClientAuthentication(...)` plus `AddApiTokenExchangeOnOidcSignIn(...)` on the client, or the `Action<ApiAuthenticationOptions>` overload of `AddApiAuthentication(...)` on the API.

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using NexArc.Authentication.Abstractions.Options;
+using NexArc.Authentication.Api.Configuration;
 using NexArc.Authentication.Api.Services;
 using NexArc.Authentication.DevBypass.Extensions;
 
@@ -12,11 +14,11 @@ namespace NexArc.Authentication.Api.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddAppAuthentication(
+    public static IServiceCollection AddApiAuthentication(
         this IServiceCollection services,
-        Action<AuthenticationOptions> configure)
+        Action<ApiAuthenticationOptions> configure)
     {
-        services.AddOptions<AuthenticationOptions>()
+        services.AddOptions<ApiAuthenticationOptions>()
             .Configure(configure)
             .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "Issuer is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "Audience is required.")
@@ -39,7 +41,7 @@ public static class ServiceCollectionExtensions
             .AddJwtBearer();
 
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<AuthenticationOptions>, ISigningKeyProvider>((options, authOptions, keyProvider) =>
+            .Configure<IOptions<ApiAuthenticationOptions>, ISigningKeyProvider>((options, authOptions, keyProvider) =>
             {
                 options.RequireHttpsMetadata = true;
                 options.MapInboundClaims = false;
@@ -58,6 +60,30 @@ public static class ServiceCollectionExtensions
 
         services.AddAuthorization();
         services.AddDevelopmentBypassGuard();
+        return services;
+    }
+
+    public static IServiceCollection AddApiAuthentication(
+        this IServiceCollection services,
+        IConfigurationSection authSection)
+    {
+        services.AddOptions<CertificateSigningKeyOptions>()
+            .Bind(authSection.GetSection("SigningKey"))
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<CertificateSigningKeyOptions>, CertificateSigningKeyOptionsValidator>());
+
+        services.AddApiAuthentication(options => authSection.Bind(options));
+        services.Replace(ServiceDescriptor.Singleton<ISigningKeyProvider>(sp =>
+        {
+            var environment = sp.GetRequiredService<IHostEnvironment>();
+            var signingKeyOptions = sp.GetRequiredService<IOptions<CertificateSigningKeyOptions>>().Value;
+            var hasSigningKey = !string.IsNullOrWhiteSpace(signingKeyOptions.PfxBase64);
+            if (!environment.IsDevelopment() || hasSigningKey)
+                return new X509CertificateSigningKeyProvider(Options.Create(signingKeyOptions));
+
+            return new EphemeralSigningKeyProvider();
+        }));
+
         return services;
     }
 }
